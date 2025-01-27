@@ -1,231 +1,141 @@
-import sqlite3,os,time
+import sqlite3
+import os
 import hashlib
 
 class Database:
-    def __init__(self) -> None:
-        if not os.path.isfile('database.db'):
+    DB_NAME = 'database.db'
+
+    def __init__(self):
+        if not os.path.isfile(self.DB_NAME):
             self.__create_database()
             self.__init_room()
             self.__init_room_type()
 
-    def __create_database(self) -> None:
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        # 用户表
-        cursor.execute('''CREATE TABLE USER(
-            ID INT PRIMARY KEY NOT NULL,
-            NAME TEXT NOT NULL,
-            PASSWORD TEXT NOT NULL,
-            PERMISSION INT NOT NULL,
-            BALANCE NUMERIC NOT NULL);''')
-        # 房间表
-        cursor.execute('''CREATE TABLE ROOM(
-            ID INT PRIMARY KEY NOT NULL,
-            TYPE INT NOT NULL,
-            STATUS INT NOT NULL);''')
-        # 房间类型表
-        cursor.execute('''CREATE TABLE ROOMTYPE(
-            ID INT PRIMARY KEY NOT NULL,
-            NAME TEXT NOT NULL,
-            PRICE NUMERIC NOT NULL);''')
-        # 预订表
-        cursor.execute('''CREATE TABLE BOOKINGS(
-            ID INT PRIMARY KEY NOT NULL,
-            USERID INT NOT NULL,
-            ROOMID INT NOT NULL,
-            DATE TEXT NOT NULL,
-            PRICE NUMERIC NOT NULL,
-            STATUS INT NOT NULL);''')
-        connection.commit()
-        connection.close()
+    def __connect(self):
+        return sqlite3.connect(self.DB_NAME)
 
-    def __init_room(self) -> None:
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
+    def __execute(self, query, params=(), fetchone=False, fetchall=False):
+        with self.__connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            if fetchone:
+                return cursor.fetchone()
+            elif fetchall:
+                return cursor.fetchall()
+            conn.commit()
+
+    def __create_database(self):
+        queries = [
+            '''CREATE TABLE USER(
+                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                NAME TEXT NOT NULL,
+                PASSWORD TEXT NOT NULL,
+                PERMISSION INTEGER NOT NULL,
+                BALANCE REAL NOT NULL DEFAULT 0
+            );''',
+            '''CREATE TABLE ROOM(
+                ID INTEGER PRIMARY KEY NOT NULL,
+                TYPE INTEGER NOT NULL,
+                STATUS INTEGER NOT NULL
+            );''',
+            '''CREATE TABLE ROOMTYPE(
+                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                NAME TEXT NOT NULL,
+                PRICE REAL NOT NULL
+            );''',
+            '''CREATE TABLE BOOKINGS(
+                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                USERID INTEGER NOT NULL,
+                ROOMID INTEGER NOT NULL,
+                DATE TEXT NOT NULL,
+                PRICE REAL NOT NULL,
+                STATUS INTEGER NOT NULL
+            );'''
+        ]
+        for query in queries:
+            self.__execute(query)
+
+    def __init_room(self):
         for floor in range(1, 6):
             for room in range(1, 11):
-                if room in [1, 2, 3]:
-                    cursor.execute('''INSERT INTO ROOM (ID, TYPE, STATUS) VALUES (?, ?, ?);''', (floor * 100 + room, 2, 1)) # 双人间
-                else:
-                    cursor.execute('''INSERT INTO ROOM (ID, TYPE, STATUS) VALUES (?, ?, ?);''', (floor * 100 + room, 1, 1)) # 单人间
-        connection.commit()
-        connection.close()
+                room_type = 2 if room in [1, 2, 3] else 1
+                self.__execute('INSERT INTO ROOM (ID, TYPE, STATUS) VALUES (?, ?, ?);', 
+                               (floor * 100 + room, room_type, 1))
 
-    def __init_room_type(self) -> None:
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        cursor.execute(f'''INSERT INTO ROOMTYPE VALUES (1, '单人间', 100.0);''')
-        cursor.execute(f'''INSERT INTO ROOMTYPE VALUES (2, '双人间', 150.0);''')
-        connection.commit()
-        connection.close()
+    def __init_room_type(self):
+        self.__execute('INSERT INTO ROOMTYPE (NAME, PRICE) VALUES (?, ?);', ('单人间', 100.0))
+        self.__execute('INSERT INTO ROOMTYPE (NAME, PRICE) VALUES (?, ?);', ('双人间', 150.0))
 
-    def __get_lastest_id(self, TABLE:str = 'USER') -> int:
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        data_cursor = cursor.execute(f'''SELECT * FROM {TABLE} ORDER BY ID DESC LIMIT 1''')
-        lastest_id = 0
-        for data in data_cursor:
-            lastest_id = data[0]
-        connection.close()
-        return lastest_id
-    
-    def add_user(self, Username:str, Password:str, Permission:int = 0):
-        # 添加用户
-        available_id = self.__get_lastest_id() + 1
-        secure_password = hashlib.md5(Password.encode()).hexdigest()
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        cursor.execute(f'''INSERT INTO USER VALUES (?, ?, ?, ?, 0);''', (available_id, Username, secure_password, Permission))
-        connection.commit()
-        connection.close()
+    def __get_lastest_id(self, table='USER'):
+        result = self.__execute(f'SELECT MAX(ID) FROM {table};', fetchone=True)
+        return result[0] if result[0] else 0
 
-    def add_room(self, Roomid:int, Type:int, Status:int = 1):
-        # 添加房间
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        cursor.execute(f'''INSERT INTO ROOM VALUES (?, ?, ?);''', (Roomid, Type, Status))
-        connection.commit()
-        connection.close()
+    def add_user(self, username:str, password:str, permission:int=0):
+        secure_password = hashlib.sha256(password.encode()).hexdigest()
+        self.__execute('INSERT INTO USER (NAME, PASSWORD, PERMISSION) VALUES (?, ?, ?);', 
+                       (username, secure_password, permission))
 
-    def add_room_type(self, Name:str, Price:float):
-        # 添加房间类型
-        available_id = self.__get_lastest_id('ROOMTYPE') + 1
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        cursor.execute(f'''INSERT INTO ROOMTYPE VALUES (?, ?, ?);''', (available_id, Name, Price))
-        connection.commit()
-        connection.close()
+    def add_room(self, room_id:int, room_type:int, status:int=1):
+        self.__execute('INSERT INTO ROOM (ID, TYPE, STATUS) VALUES (?, ?, ?);', 
+                       (room_id, room_type, status))
 
-    def booking(self, UserID:int, RoomID:int, Date:str, Price:float) -> bool:
-        # 预订
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        if cursor.execute(f'''SELECT * FROM BOOKINGS WHERE ROOMID = ? AND DATE = ? AND STATUS = 1;''',(RoomID, Date)).fetchone():
+    def add_room_type(self, name:str, price:float):
+        self.__execute('INSERT INTO ROOMTYPE (NAME, PRICE) VALUES (?, ?);', (name, price))
+
+    def booking(self, user_id:int, room_id:int, date:str, price:float) -> bool:
+        if self.__execute('SELECT 1 FROM BOOKINGS WHERE ROOMID = ? AND DATE = ? AND STATUS = 1;', 
+                          (room_id, date), fetchone=True):
             return False
-        cursor.execute(f'''INSERT INTO BOOKINGS VALUES (?, ?, ?, ?, ?, 1);''', (self.__get_lastest_id('BOOKINGS') + 1, UserID, RoomID, Date, Price))
-        connection.commit()
-        connection.close()
+        self.__execute('INSERT INTO BOOKINGS (USERID, ROOMID, DATE, PRICE, STATUS) VALUES (?, ?, ?, ?, 1);', 
+                       (user_id, room_id, date, price))
         return True
 
-    def change_room_info(self, RoomID:int, Type:int = None, Price:int = None, Status:int = None):
-        # 更改房间信息
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        if Type:
-            cursor.execute(f'''UPDATE ROOM SET TYPE = ? WHERE ID = ?;''', (Type, RoomID))
-        if Price:
-            cursor.execute(f'''UPDATE ROOM SET PRICE = ? WHERE ID = ?;''', (Price, RoomID))
-        if Status:
-            cursor.execute(f'''UPDATE ROOM SET STATUS = ? WHERE ID = ?;''', (Status, RoomID))
-        connection.commit()
-        connection.close()
+    def update_room(self, room_id:int, room_type:int=None, status:int=None):
+        if room_type:
+            self.__execute('UPDATE ROOM SET TYPE = ? WHERE ID = ?;', (room_type, room_id))
+        if status:
+            self.__execute('UPDATE ROOM SET STATUS = ? WHERE ID = ?;', (status, room_id))
 
-    def change_type_info(self, Type:int, Name:str = None, Price:float = None):
-        # 更改房间类型信息
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        if Name:
-            cursor.execute(f'''UPDATE ROOMTYPE SET NAME = ? WHERE ID = ?;''', (Name, Type))
-        if Price:
-            cursor.execute(f'''UPDATE ROOMTYPE SET PRICE = ? WHERE ID = ?;''', (Price, Type))
-        connection.commit()
-        connection.close()
+    def update_room_type(self, type_id:int, name:str=None, price:float=None):
+        if name:
+            self.__execute('UPDATE ROOMTYPE SET NAME = ? WHERE ID = ?;', (name, type_id))
+        if price:
+            self.__execute('UPDATE ROOMTYPE SET PRICE = ? WHERE ID = ?;', (price, type_id))
 
-    def get_available_types(self) -> list[list[int, str, float]]:
-        # 获取可用房间类型
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        data_cursor = cursor.execute(f'''SELECT * FROM ROOMTYPE;''')
-        types = []
-        for data in data_cursor:
-            types.append(data[1])
-        return types
+    def get_available_room_types(self):
+        return self.__execute('SELECT * FROM ROOMTYPE;', fetchall=True)
 
-    def get_type_info(self, Type:int) -> dict:
-        # 获取指定房间类型信息
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        data_cursor = cursor.execute(f'''SELECT * FROM ROOMTYPE WHERE ID = ?;''', (Type,))
-        for data in data_cursor:
-            return data
-        return None
-    
-    def get_room_info(self, RoomID:int = -1) -> dict:
-        # 获取指定房间信息
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        if RoomID == -1:
-            data_cursor = cursor.execute(f'''SELECT * FROM ROOM;''')
-            return list(data_cursor)
-        else:
-            data_cursor = cursor.execute(f'''SELECT * FROM ROOM WHERE ID = ?;''', (RoomID,))
-        for data in data_cursor:
-            return data
-        return None
-    
-    def get_booking_info(self, BookingID:int, Userid:int) -> dict:
-        # 获取预订信息
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        data_cursor = cursor.execute(f'''SELECT * FROM BOOKINGS WHERE ID = ? AND USERID = ?;''', (BookingID, Userid))
-        for data in data_cursor:
-            return data
-        return None
-    
-    def delete_room(self, RoomID:int):
-        # 删除房间
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        cursor.execute(f'''DELETE FROM ROOM WHERE ID = ?;''', (RoomID,))
-        connection.commit()
-        connection.close()
+    def get_room_info(self, room_id:int=None):
+        query = 'SELECT * FROM ROOM' if room_id is None else 'SELECT * FROM ROOM WHERE ID = ?'
+        return self.__execute(query, (room_id,) if room_id else (), fetchall=True)
 
-    def login(self, Username:str, Password:str) -> dict|int:
-        # 登录
-        secure_password = hashlib.md5(Password.encode()).hexdigest()
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        data_cursor = cursor.execute(f'''SELECT * FROM USER WHERE NAME = ? AND PASSWORD = ?;''', (Username, secure_password))
-        for data in data_cursor:
-            return data
-        return -1
+    def get_booking_info(self, booking_id:int, user_id:int):
+        return self.__execute('SELECT * FROM BOOKINGS WHERE ID = ? AND USERID = ?;', 
+                              (booking_id, user_id), fetchone=True)
     
-    def check_room_is_avaliabe(self, RoomID:int, Date:str) -> bool:
-        # 检查房间是否可用
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        data_cursor = cursor.execute(f'''SELECT * FROM BOOKINGS WHERE ROOMID = ? AND DATE = ? AND STATUS = 1;''', (RoomID, Date))
-        for data in data_cursor:
-            return False
-        return True
-    
-    def cancel_booking(self, BookingID:int) -> bool:
-        # 取消预订
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        cursor.execute(f'''UPDATE BOOKINGS SET STATUS = 0 WHERE ID = ?;''', (BookingID,))
-        connection.commit()
-        connection.close()
+    def get_room_type_info(self, type_id:int):
+        return self.__execute('SELECT * FROM ROOMTYPE WHERE ID = ?;', (type_id,), fetchone=True)
+
+    def delete_room(self, room_id:int):
+        self.__execute('DELETE FROM ROOM WHERE ID = ?;', (room_id,))
+
+    def login(self, username:str, password:str):
+        secure_password = hashlib.sha256(password.encode()).hexdigest()
+        return self.__execute('SELECT * FROM USER WHERE NAME = ? AND PASSWORD = ?;', 
+                              (username, secure_password), fetchone=True) or -1
+
+    def is_room_available(self, room_id:int, date:str):
+        return not self.__execute('SELECT 1 FROM BOOKINGS WHERE ROOMID = ? AND DATE = ? AND STATUS = 1;', 
+                                  (room_id, date), fetchone=True)
+
+    def cancel_booking(self, booking_id:int):
+        self.__execute('UPDATE BOOKINGS SET STATUS = 0 WHERE ID = ?;', (booking_id,))
         return True
 
-    def recharge(self, UserID:int, Money:float) -> bool:
-        # 充值
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        cursor.execute(f'''UPDATE USER SET BALANCE = BALANCE + ? WHERE ID = ?;''', (Money, UserID))
-        connection.commit()
-        connection.close()
+    def recharge(self, user_id:int, amount:float):
+        self.__execute('UPDATE USER SET BALANCE = BALANCE + ? WHERE ID = ?;', (amount, user_id))
         return True
 
-    def show_booking(self, UserID:int = -1) -> list:
-        # 查看预订
-        connection = sqlite3.connect('database.db')
-        cursor = connection.cursor()
-        if UserID == -1:
-            data_cursor = cursor.execute(f'''SELECT * FROM BOOKINGS;''')
-        else:
-            data_cursor = cursor.execute(f'''SELECT * FROM BOOKINGS WHERE USERID = ? AND STATUS = 1;''', (UserID,))
-        bookings = []
-        for data in data_cursor:
-            bookings.append(data)
-        return bookings
+    def show_bookings(self, user_id:int=None):
+        query = 'SELECT * FROM BOOKINGS' if user_id is None else 'SELECT * FROM BOOKINGS WHERE USERID = ? AND STATUS = 1;'
+        return self.__execute(query, (user_id,) if user_id else (), fetchall=True)

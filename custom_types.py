@@ -20,11 +20,11 @@ class Room:
     def __check_status(self) -> int:
         if self.status == 0:
             return 0 # 维护
-        if Database().check_room_is_avaliabe(self.id, datetime.now().strftime('%Y.%m.%d')):
+        if Database().is_room_available(self.id, datetime.now().strftime('%Y.%m.%d')):
             return 1 # 可用
         return 2 # 已订
     
     def __get_type_info(self):
-        info = Database().get_type_info(self.type)
+        info = Database().get_room_type_info(self.type)
         self.type_name = info[1]
         self.price = info[2]

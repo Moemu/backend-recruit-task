@@ -114,7 +114,7 @@ class App:
             print('时间格式输入有误，请重新输入')
             self.book_room()
             return
-        room = db.get_room_info(room_id)
+        room = db.get_room_info(room_id)[0]
         if not room:
             print('房间不存在')
             input('按任意键返回')
@@ -147,9 +147,9 @@ class App:
     def show_booking(self, admin = False):
         print('-'*8, '订单列表', '-'*8)
         if admin:
-            bookings = db.show_booking()
+            bookings = db.show_bookings()
         else:
-            bookings = db.show_booking(self.user.id)
+            bookings = db.show_bookings(self.user.id)
         if not bookings:
             print('暂无订单')
             input('按任意键返回')
@@ -165,7 +165,7 @@ class App:
     def cancel_booking(self):
         print('-'*9, '退订', '-'*9)
         print('当前的订单列表：')
-        bookings = db.show_booking(self.user.id)
+        bookings = db.show_bookings(self.user.id)
         if not bookings:
             print('暂无订单')
             input('按任意键返回')
@@ -252,7 +252,8 @@ class App:
             os.system('cls')
             self.admin_menu()
             return
-        available_types = db.get_available_types()
+        available_types = db.get_available_room_types()
+        available_types = [room_type[1] for room_type in available_types]
         print(f"可用房间类型：{'、'.join([str(index + 1) + '-' + value for index,value in enumerate(available_types)]) }")
         room_type = input('请输入房间类型对应的ID：')
         is_valid, room_type = check_value(room_type, 'int')
@@ -288,7 +289,7 @@ class App:
 
     def change_room_status(self):
         print('-'*7, '更改房间信息', '-'*7)
-        room_id = input('请输入房间号(101-510)：')
+        room_id = input('请输入房间号：')
         is_valid, room_id = check_value(room_id, 'int')
         if not is_valid:
             print('房间号输入有误，请重新输入')
@@ -307,11 +308,11 @@ class App:
             self.change_room_status()
         type_id = input('请输入房间类型ID：')
         is_valid, type_id = check_value(type_id, 'int')
-        if not is_valid or not db.get_type_info(type_id):
+        if not is_valid or not db.get_room_type_info(type_id):
             print('类型ID输入有误，请重新输入')
             self.change_room_status()
             return
-        db.change_room_info(room_id, Status=status, Type=type_id)
+        db.update_room(room_id, status=status, room_type=type_id)
         print('更改成功')
         input('按任意键返回')
         os.system('cls')
@@ -334,7 +335,8 @@ class App:
 
     def change_type_info(self):
         print('-'*7, '修改类型信息', '-'*7)
-        available_types = db.get_available_types()
+        available_types = db.get_available_room_types()
+        available_types = [room_type[1] for room_type in available_types]
         print(f"可用房间类型：{'、'.join([str(index + 1) + '-' + value for index,value in enumerate(available_types)]) }")
         room_type = input('请输入房间类型ID：')
         is_valid, room_type = check_value(room_type, 'int')
@@ -342,7 +344,7 @@ class App:
             print('类型ID输入有误，请重新输入')
             self.change_type_info()
             return
-        if not db.get_type_info(room_type):
+        if not db.get_room_type_info(room_type):
             print('类型不存在')
             input('按任意键返回')
             os.system('cls')
@@ -355,7 +357,7 @@ class App:
             print('类型名称或价格输入有误，请重新输入')
             self.change_type_info()
             return
-        db.change_type_info(room_type, room_type_name, room_price)
+        db.update_room_type(room_type, room_type_name, room_price)
         print('更改成功')
         input('按任意键返回')
         os.system('cls')
