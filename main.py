@@ -43,7 +43,7 @@ class App:
         login_result = db.login(username, password)
         if login_result == -1:
             print('用户名或密码错误')
-            self.login()
+            self.welcome()
             return
         self.user = User(login_result)
         os.system('cls')
