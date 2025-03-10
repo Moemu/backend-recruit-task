@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import hashlib
+from typing import Any, Optional
 
 class Database:
     DB_NAME = 'database.db'
@@ -14,7 +15,7 @@ class Database:
     def __connect(self):
         return sqlite3.connect(self.DB_NAME)
 
-    def __execute(self, query, params=(), fetchone=False, fetchall=False):
+    def __execute(self, query, params=(), fetchone=False, fetchall=False) -> Any:
         with self.__connect() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
@@ -90,22 +91,22 @@ class Database:
                        (user_id, room_id, date, price))
         return True
 
-    def update_room(self, room_id:int, room_type:int=None, status:int=None):
-        if room_type:
+    def update_room(self, room_id:int, room_type:Optional[int] = None, status:Optional[int] = None):
+        if room_type is not None:
             self.__execute('UPDATE ROOM SET TYPE = ? WHERE ID = ?;', (room_type, room_id))
-        if status:
+        if status is not None:
             self.__execute('UPDATE ROOM SET STATUS = ? WHERE ID = ?;', (status, room_id))
 
-    def update_room_type(self, type_id:int, name:str=None, price:float=None):
-        if name:
+    def update_room_type(self, type_id:int, name:Optional[str] = None, price:Optional[float] = None):
+        if name is not None:
             self.__execute('UPDATE ROOMTYPE SET NAME = ? WHERE ID = ?;', (name, type_id))
-        if price:
+        if price is not None:
             self.__execute('UPDATE ROOMTYPE SET PRICE = ? WHERE ID = ?;', (price, type_id))
 
     def get_available_room_types(self):
         return self.__execute('SELECT * FROM ROOMTYPE;', fetchall=True)
 
-    def get_room_info(self, room_id:int=None):
+    def get_room_info(self, room_id: Optional[int] = None):
         query = 'SELECT * FROM ROOM' if room_id is None else 'SELECT * FROM ROOM WHERE ID = ?'
         return self.__execute(query, (room_id,) if room_id else (), fetchall=True)
 
@@ -116,26 +117,26 @@ class Database:
     def get_room_type_info(self, type_id:int):
         return self.__execute('SELECT * FROM ROOMTYPE WHERE ID = ?;', (type_id,), fetchone=True)
 
-    def delete_room(self, room_id:int):
+    def delete_room(self, room_id: int):
         self.__execute('DELETE FROM ROOM WHERE ID = ?;', (room_id,))
 
-    def login(self, username:str, password:str):
+    def login(self, username: str, password: str):
         secure_password = hashlib.sha256(password.encode()).hexdigest()
         return self.__execute('SELECT * FROM USER WHERE NAME = ? AND PASSWORD = ?;', 
                               (username, secure_password), fetchone=True) or -1
 
-    def is_room_available(self, room_id:int, date:str):
+    def is_room_available(self, room_id: int, date: str):
         return not self.__execute('SELECT 1 FROM BOOKINGS WHERE ROOMID = ? AND DATE = ? AND STATUS = 1;', 
                                   (room_id, date), fetchone=True)
 
-    def cancel_booking(self, booking_id:int):
+    def cancel_booking(self, booking_id: int):
         self.__execute('UPDATE BOOKINGS SET STATUS = 0 WHERE ID = ?;', (booking_id,))
         return True
 
-    def recharge(self, user_id:int, amount:float):
+    def recharge(self, user_id: int, amount: float):
         self.__execute('UPDATE USER SET BALANCE = BALANCE + ? WHERE ID = ?;', (amount, user_id))
         return True
 
-    def show_bookings(self, user_id:int=None):
+    def show_bookings(self, user_id: Optional[int] = None):
         query = 'SELECT * FROM BOOKINGS' if user_id is None else 'SELECT * FROM BOOKINGS WHERE USERID = ? AND STATUS = 1;'
         return self.__execute(query, (user_id,) if user_id else (), fetchall=True)

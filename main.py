@@ -14,8 +14,8 @@ signal.signal(signal.SIGINT, signal_handler)
 
 class App:
     def __init__(self):
-        self.user:User = None
-
+        self.user:User
+    
     def welcome(self): 
         print('-' * 20) 
         print('欢迎进入酒店管理系统')
@@ -103,14 +103,14 @@ class App:
     def book_room(self):
         print('-'*8, '预订房间', '-'*8)
         room_id = input('请输入房间号：')
-        is_valid, room_id = check_value(room_id, 'int')
-        if not is_valid:
+        room_id = check_value(room_id, 'int')
+        if not room_id:
             print('房间号输入有误，请重新输入')
             self.book_room()
             return
         date = input('请输入日期(格式：年.月.日)：')
-        is_valid, date = check_value(date, 'date')
-        if not is_valid:
+        date = check_value(date, 'date')
+        if not date:
             print('时间格式输入有误，请重新输入')
             self.book_room()
             return
@@ -175,8 +175,8 @@ class App:
         for booking in bookings:
             print(f'订单号：{booking[0]}，房间号：{booking[2]}，日期：{booking[3]}，金额：{booking[4]}')
         booking_id = input('请输入订单号：')
-        is_valid, booking_id = check_value(booking_id, 'int')
-        if not is_valid:
+        booking_id = check_value(booking_id, 'int')
+        if not booking_id:
             print('订单号输入有误，请重新输入')
             self.cancel_booking()
             return
@@ -198,8 +198,8 @@ class App:
     def recharge(self):
         print('-'*9, '充值', '-'*9)
         amount = input('请输入充值金额：')
-        is_valid, amount = check_value(amount, 'float')
-        if not is_valid:
+        amount = check_value(amount, 'float')
+        if not amount:
             print('金额输入有误，请重新输入')
             self.recharge()
             return
@@ -241,8 +241,8 @@ class App:
     def add_room(self):
         print('-'*8, '添加房间', '-'*8)
         room_id = input('请输入房间号：')
-        is_valid, room_id = check_value(room_id, 'int')
-        if not is_valid:
+        room_id = check_value(room_id, 'int')
+        if not room_id:
             print('房间号输入有误，请重新输入')
             self.add_room()
             return
@@ -256,8 +256,8 @@ class App:
         available_types = [room_type[1] for room_type in available_types]
         print(f"可用房间类型：{'、'.join([str(index + 1) + '-' + value for index,value in enumerate(available_types)]) }")
         room_type = input('请输入房间类型对应的ID：')
-        is_valid, room_type = check_value(room_type, 'int')
-        if not is_valid:
+        room_type = check_value(room_type, 'int')
+        if not room_type:
             print('类型ID输入有误，请重新输入')
             self.add_room()
             return
@@ -270,8 +270,8 @@ class App:
     def delete_room(self):
         print('-'*8, '删除房间', '-'*8)
         room_id = input('请输入房间号：')
-        is_valid, room_id = check_value(room_id, 'int')
-        if not is_valid:
+        room_id = check_value(room_id, 'int')
+        if not room_id:
             print('房间号输入有误，请重新输入')
             self.delete_room()
             return
@@ -290,8 +290,8 @@ class App:
     def change_room_status(self):
         print('-'*7, '更改房间信息', '-'*7)
         room_id = input('请输入房间号：')
-        is_valid, room_id = check_value(room_id, 'int')
-        if not is_valid:
+        room_id = check_value(room_id, 'int')
+        if not room_id:
             print('房间号输入有误，请重新输入')
             self.change_room_status()
             return
@@ -302,13 +302,13 @@ class App:
             self.admin_menu()
             return
         status = input('请输入状态(0-维护，1-可用)：')
-        is_valid, status = check_value(status, 'int')
-        if not is_valid or status not in [0, 1]:
+        status = check_value(status, 'int')
+        if not status or status not in [0, 1]:
             print('状态输入有误，请重新输入')
             self.change_room_status()
         type_id = input('请输入房间类型ID：')
-        is_valid, type_id = check_value(type_id, 'int')
-        if not is_valid or not db.get_room_type_info(type_id):
+        type_id = check_value(type_id, 'int')
+        if not type_id or not db.get_room_type_info(type_id):
             print('类型ID输入有误，请重新输入')
             self.change_room_status()
             return
@@ -322,8 +322,8 @@ class App:
         print('-'*7, '增加房间类型', '-'*7)
         room_type_name = input('请输入房间类型名称：')
         room_price = input('请输入房间价格：')
-        is_valid, room_price = check_value(room_price, 'float')
-        if not is_valid or room_price <= 0 or room_type_name == '':
+        room_price = check_value(room_price, 'float')
+        if not room_price or room_price <= 0 or room_type_name == '':
             print('类型名称或价格输入有误，请重新输入')
             self.add_room_type()
             return
@@ -339,8 +339,8 @@ class App:
         available_types = [room_type[1] for room_type in available_types]
         print(f"可用房间类型：{'、'.join([str(index + 1) + '-' + value for index,value in enumerate(available_types)]) }")
         room_type = input('请输入房间类型ID：')
-        is_valid, room_type = check_value(room_type, 'int')
-        if not is_valid or room_type not in range(1, len(available_types) + 1):
+        room_type = check_value(room_type, 'int')
+        if not room_type or room_type not in range(1, len(available_types) + 1):
             print('类型ID输入有误，请重新输入')
             self.change_type_info()
             return
@@ -352,8 +352,8 @@ class App:
             return
         room_type_name = input('请输入房间类型名称：')
         room_price = input('请输入房间价格：')
-        is_valid, room_price = check_value(room_price, 'float')
-        if not is_valid or room_price <= 0 or room_type_name == '':
+        room_price = check_value(room_price, 'float')
+        if not room_price or room_price <= 0 or room_type_name == '':
             print('类型名称或价格输入有误，请重新输入')
             self.change_type_info()
             return

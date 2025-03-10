@@ -1,18 +1,20 @@
-def check_value(value:str, type:str) -> tuple[bool, int|float|str]:
+from typing import Any
+
+def check_value(value:str, type:str) -> Any:
     if type == 'int':
         if value.isdigit():
-            return True, int(value)
+            return int(value)
         else:
-            return False, None
+            return False
     elif type == 'float':
         if value.replace('.','',1).isdigit():
-            return True, float(value)
+            return float(value)
         else:
-            return False, None
+            return False
     elif type == 'date':
         if value.count('.') == 2 and value.replace('.','',2).isdigit():
-            return True, value
+            return value
         else:
-            return False, None
+            return False
     else:
-        return True, value
+        return value
